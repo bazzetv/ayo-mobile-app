@@ -8,7 +8,7 @@ import * as AuthSession from "expo-auth-session";
 import * as AppleAuthentication from "expo-apple-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SERVER_URL = "http://192.168.1.139:8080";
+const SERVER_URL = "http://localhost:8080";
 const Logo = require("../../assets/images/logo.png");
 
 const backgroundImages = [

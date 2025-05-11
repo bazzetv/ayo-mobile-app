@@ -56,6 +56,38 @@ export default function HomeScreen() {
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const token = await AsyncStorage.getItem("jwt");
+        const response = await fetch(SERVER_URL, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Erreur lors de la récupération des programmes");
+
+        const { started = [], finished = [], not_started = [] } = await response.json();
+
+        setPrograms({
+          started: started.length ? started : fallbackPrograms.started,
+          not_started: not_started.length ? not_started : fallbackPrograms.not_started,
+          finished: finished.length ? finished : fallbackPrograms.finished,
+        });
+      } catch (err) {
+        console.error("Erreur fetch:", err);
+        setPrograms(fallbackPrograms);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrograms();
+  }, []);
+  
   const handleProgramPress = async (programId) => {
     try {
       const token = await AsyncStorage.getItem("jwt");
@@ -107,37 +139,6 @@ export default function HomeScreen() {
     );
   }
 
-  useEffect(() => {
-    const fetchPrograms = async () => {
-      try {
-        const token = await AsyncStorage.getItem("jwt");
-        const response = await fetch(SERVER_URL, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) throw new Error("Erreur lors de la récupération des programmes");
-
-        const { started = [], finished = [], not_started = [] } = await response.json();
-
-        setPrograms({
-          started: started.length ? started : fallbackPrograms.started,
-          not_started: not_started.length ? not_started : fallbackPrograms.not_started,
-          finished: finished.length ? finished : fallbackPrograms.finished,
-        });
-      } catch (err) {
-        console.error("Erreur fetch:", err);
-        setPrograms(fallbackPrograms);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrograms();
-  }, []);
 
   return (
     <View style={styles.container}>
