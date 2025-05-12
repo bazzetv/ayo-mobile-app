@@ -1,77 +1,49 @@
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
-import { View, StyleSheet } from 'react-native';
-import { AnimatedFAB } from 'react-native-paper';
-import HomeScreen from './home';
-import TrainingScreen from './training';
-import HistoryScreen from './history';
-import { useRouter, usePathname } from 'expo-router';
-import { useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const Drawer = createDrawerNavigator();
+// app/(drawer)/_layout.tsx
+import { Drawer } from 'expo-router/drawer';
+import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { Text, View } from 'react-native';
 
 function CustomDrawerContent(props) {
-    const router = useRouter(); // ✅ Utilisation de `useRouter()` pour la navigation
+  const router = useRouter();
 
-    const handleLogout = async () => {
-        try {
-            await AsyncStorage.removeItem("jwt"); 
-            await AsyncStorage.removeItem("refreshToken");
-            await AsyncStorage.setItem("wasLoggedOut", "true");
-            router.replace("/login");
-        } catch (error) {
-            console.error("Erreur lors de la déconnexion :", error);
-        }
-    };
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("jwt");
+      await AsyncStorage.removeItem("refreshToken");
+      router.replace("/(auth)/login");
+    } catch (err) {
+      console.error("Erreur lors de la déconnexion :", err);
+    }
+  };
 
-    return (
-        <DrawerContentScrollView {...props}>
-            {/* ✅ Affichage des éléments du menu */}
-            <DrawerItemList {...props} />
-
-            {/* ✅ Ajout du bouton de déconnexion */}
-            <DrawerItem
-                label="Logout"
-                onPress={handleLogout}
-                labelStyle={{ color: "red", fontWeight: "bold" }}
-            />
-        </DrawerContentScrollView>
-    );
+  return (
+    <DrawerContentScrollView {...props}>
+      <DrawerItemList {...props} />
+      <DrawerItem
+        label="🚪 Logout"
+        onPress={handleLogout}
+        labelStyle={{ color: 'red', fontWeight: 'bold' }}
+      />
+    </DrawerContentScrollView>
+  );
 }
 
 export default function DrawerLayout() {
-    const router = useRouter();
-    const [isVisible, setIsVisible] = useState(true);
-    const pathname = usePathname();
-
-    return (
-        <View style={{ flex: 1 }}>
-            <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}
-            screenOptions={{
-                headerStyle: {
-                  backgroundColor: "#0a0a0a", // Fond sombre
-                },
-                headerTintColor: "#ffffff", // Texte et icônes blancs
-                headerTitleStyle: {
-                  fontWeight: "bold",
-                },
-                drawerStyle: {
-                  backgroundColor: "#121212", // Fond du menu latéral aussi sombre
-                },
-                drawerActiveTintColor: "#2563eb", // Couleur bleue pour l’item sélectionné
-                drawerInactiveTintColor: "#bbb", // Autres items en gris clair
-              }}>
-                <Drawer.Screen name="home" component={HomeScreen} options={{
-                    title: "Training Plan",
-                    headerTitleStyle: { fontSize: 22, fontWeight: "bold" }
-                }} />
-                <Drawer.Screen name="training" component={TrainingScreen} options={{
-                    title: "Training in progress",
-                    headerTitleStyle: { fontWeight: "bold" }
-                }} />
-                <Drawer.Screen name="history" component={HistoryScreen}options={{ title: "Training history" }}
-                />
-            </Drawer.Navigator>
-        </View>
-    );
+  return (
+    <Drawer
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      screenOptions={{
+        headerShown: false,
+        drawerStyle: {
+          backgroundColor: "#121212",
+        },
+        drawerActiveTintColor: "#2563eb",
+        drawerInactiveTintColor: "#bbb",
+      }}
+    >
+      <Drawer.Screen name="(tabs)" />
+    </Drawer>
+  );
 }

@@ -9,11 +9,11 @@ import {
   ActivityIndicator,
   Modal,
   TouchableOpacity,
+  Pressable,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { Alert } from "react-native";
-
 
 const SERVER_URL = "http://localhost:8080/private/programs";
 const { width } = Dimensions.get("window");
@@ -235,13 +235,13 @@ export default function HomeScreen() {
                               text: "OK",
                               onPress: () => {
                                 setShowModal(false); // Fermer la modal
-                                router.push("/(drawer)/training"); // Redirection
+                                router.push("/(tabs)/training"); // Redirection
                               }
                             }
                           ]
                         );
                         setShowModal(false);
-                        router.push("/(drawer)/training");
+                        router.push("/(tabs)/training");
                         return;
                       }
 
@@ -252,7 +252,7 @@ export default function HomeScreen() {
 
                       setShowModal(false); // ✅ Fermer la modal proprement
                       router.push({
-                        pathname: "/(drawer)/training",
+                        pathname: "/(tabs)/training",
                         params: {
                           program: JSON.stringify(selectedProgram),
                           progressId,

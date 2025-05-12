@@ -1,7 +1,8 @@
 // app/(drawer)/training.tsx
 import React from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
 // Exemple de structure des props
 const mockProgram = {
@@ -22,26 +23,28 @@ const mockProgram = {
         { name: "Rest" },
       ],
     },
-    // Semaine 2 etc.
   ],
   completedDays: [0], // Jour 1 déjà fait
 };
 
 export default function TrainingScreen() {
   const router = useRouter();
-  const program = mockProgram; // Remplacer plus tard par props ou fetch
+  const program = mockProgram;
   const currentWeekIndex = program.currentWeek - 1;
   const days = program.structure[currentWeekIndex]?.days || [];
   const completed = program.completedDays || [];
 
   const handleDayPress = (index: number) => {
-    if (index > program.currentDay) return; // ne pas autoriser jours futurs
+    if (index > program.currentDay) return;
+    // TODO: router.push() vers l'écran de la journée
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>{program.title}</Text>
-      <Text style={styles.subtitle}>Semaine {program.currentWeek} / {program.durationWeeks}</Text>
+      <Text style={styles.subtitle}>
+        Semaine {program.currentWeek} / {program.durationWeeks}
+      </Text>
 
       <FlatList
         data={days}
@@ -62,12 +65,14 @@ export default function TrainingScreen() {
               onPress={() => handleDayPress(index)}
               disabled={isFuture}
             >
-              <Text style={styles.dayText}>Jour {index + 1}: {item.name}</Text>
+              <Text style={styles.dayText}>
+                Jour {index + 1}: {item.name}
+              </Text>
             </TouchableOpacity>
           );
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
