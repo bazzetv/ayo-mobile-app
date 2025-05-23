@@ -13,12 +13,12 @@ import Modal from "react-native-modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationProp } from "@react-navigation/native";
 
-const SERVER_URL = "http://localhost:8080/private/programs";
+const SERVER_URL = "http://localhost:8080/private";
 const { width } = Dimensions.get("window");
 
 const fallbackPrograms = {
   started: [],
-  not_started: [],
+  notStarted: [],
   finished: [],
 };
 
@@ -30,53 +30,51 @@ type HomeScreenProps = {
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [loading, setLoading] = useState(true);
-  const [programs, setPrograms] = useState({ started: [], not_started: [], finished: [] });
+  const [programs, setPrograms] = useState({ started: [], notStarted: [], finished: [] });
   const scrollX = useRef(new Animated.Value(0)).current;
   const [pageIndex, setPageIndex] = useState(0);
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState<"started" | "not_started" | null>(null);
+  const [modalMode, setModalMode] = useState<"started" | "notStarted" | null>(null);
+
+  const fetchPrograms = async () => {
+    try {
+      const token = await AsyncStorage.getItem("jwt");
+      const response = await fetch(`${SERVER_URL}/programs`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Erreur lors de la récupération des programmes");
+
+      const { started = [], finished = [], notStarted = [] } = await response.json();
+
+      setPrograms({
+        started,
+        notStarted,
+        finished,
+      });
+    } catch (err) {
+      console.error("Erreur fetch:", err);
+      setPrograms(fallbackPrograms);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPrograms = async () => {
-      try {
-        const token = await AsyncStorage.getItem("jwt");
-        const response = await fetch(SERVER_URL, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) throw new Error("Erreur lors de la récupération des programmes");
-
-        const { started = [], finished = [], not_started = [] } = await response.json();
-
-        setPrograms({
-          started: started.length ? started : fallbackPrograms.started,
-          not_started: not_started.length ? not_started : fallbackPrograms.not_started,
-          finished: finished.length ? finished : fallbackPrograms.finished,
-        });
-      } catch (err) {
-        console.error("Erreur fetch:", err);
-        setPrograms(fallbackPrograms);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPrograms();
   }, []);
 
   const handleProgramPress = async (programId, status) => {
     try {
       const token = await AsyncStorage.getItem("jwt");
-      const res = await fetch(`${SERVER_URL}/${programId}`, {
+      const res = await fetch(`${SERVER_URL}/programs/${programId}`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) throw new Error("Échec de chargement du programme");
@@ -85,11 +83,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setSelectedProgram({
         ...data.program,
         status: data.status,
-        currentWeek: data.currentWeek,
-        currentDay: data.currentDay,
-        completedDays: data.completedDays,
+        currentWeek: parseInt(data.currentWeek),
+        currentDay: parseInt(data.currentDay),
+        completedDays: data.completedDays || {},
       });
-      setModalMode(status === "started" ? "started" : "not_started");
+      setModalMode(data.status === "started" ? "started" : "notStarted");
       setShowModal(true);
     } catch (err) {
       console.error("Erreur lors du chargement du programme :", err);
@@ -108,7 +106,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
 
   const renderPage = (title, data, index) => {
-    const status = index === 0 ? "started" : index === 1 ? "not_started" : "finished";
+    const status = index === 0 ? "started" : index === 1 ? "noStarted" : "finished";
     return (
       <View style={styles.page}>
         <Text style={styles.pageTitle}>{title}</Text>
@@ -150,7 +148,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress={async () => {
             try {
               const token = await AsyncStorage.getItem("jwt");
-              const res = await fetch(`http://localhost:8080/private/programs/start`, {
+              const res = await fetch(`${SERVER_URL}/programs/subscribe`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -161,31 +159,81 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
               if (!res.ok) throw new Error("Erreur lors du démarrage");
 
-              const { completedDays = {}, progressId } = await res.json();
+              // Ferme la modal et recharge les programmes
               setShowModal(false);
-              navigation.navigate("training", {
-                program: JSON.stringify({ ...selectedProgram, completedDays }),
-                progressId,
-              });
+              setSelectedProgram(null);
+              setModalMode(null);
+              await fetchPrograms();
             } catch (err) {
               console.error("Erreur démarrage :", err);
             }
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Démarrer le programme</Text>
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Subscribe</Text>
         </TouchableOpacity>
       </>
     );
   };
 
   const renderDayModal = () => {
+    console.log("Selected Program:", selectedProgram);
     if (!selectedProgram) return null;
 
     const currentWeekIndex = selectedProgram.currentWeek - 1;
     const days = selectedProgram.structure?.[currentWeekIndex]?.days || [];
-    const completed = selectedProgram.completedDays?.[selectedProgram.currentWeek] || [];
+    const completed = selectedProgram.completedDays?.[String(selectedProgram.currentWeek)] || [];
 
-    const currentDayIndex = completed.length === 0 ? 0 : selectedProgram.currentDay;
+    const currentDayIndex = completed.length === 0 ? 0 : selectedProgram.currentDay - 1;
+
+    const handleResumeDay = async (dayIndex: number) => {
+      try {
+        const token = await AsyncStorage.getItem("jwt");
+        const programId = selectedProgram.id;
+
+        const currentDayData = selectedProgram.structure[selectedProgram.currentWeek - 1].days[dayIndex];
+
+        const payload = {
+          programId,
+          currentTraining: {
+            programId: selectedProgram.id,
+            weekIndex: selectedProgram.currentWeek - 1,
+            dayIndex,
+            name: currentDayData.name,
+            exercises: currentDayData.exercises.map((exercise) => ({
+              name: exercise.name,
+              sets: Array.from({ length: exercise.sets }).map(() => ({
+                weight: exercise.weight ?? null,
+                reps: exercise.reps ?? null,
+                finished: false
+              }))
+            })),
+          },
+        };
+
+        console.log("Payload envoyé :", JSON.stringify(payload, null, 2));
+
+        const res = await fetch(`http://localhost:8080/private/training/update`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errMsg = await res.text();
+          Alert.alert("Erreur", errMsg);
+          return;
+        }
+
+        setShowModal(false);
+        navigation.navigate("training");
+      } catch (err) {
+        console.error("Erreur lors du démarrage de l'entraînement:", err);
+        Alert.alert("Erreur", "Impossible de démarrer l'entraînement.");
+      }
+    };
 
     return (
       <>
@@ -199,20 +247,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
           let backgroundColor = "#333";
           if (isCompleted) backgroundColor = "green";
-          else if (isCurrent) backgroundColor = "#2563eb"; // bleu
+          else if (isCurrent) backgroundColor = "#2563eb";
 
           return (
             <TouchableOpacity
               key={index}
               style={[styles.dayCard, { backgroundColor }]}
-              onPress={() => {
-                navigation.navigate("training", {
-                  program: JSON.stringify(selectedProgram),
-                  progressId: selectedProgram.progressId,
-                  selectedDayIndex: index,
-                });
-                setShowModal(false);
-              }}
+              onPress={() => handleResumeDay(index)}
             >
               <Text style={styles.dayText}>Jour {index + 1}: {day.name}</Text>
             </TouchableOpacity>
@@ -225,7 +266,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   return (
     <View style={styles.container}>
       <Animated.FlatList
-        data={[programs.started, programs.not_started, programs.finished]}
+        data={[programs.started, programs.notStarted, programs.finished]}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -262,7 +303,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             {modalMode === "started" && renderDayModal()}
-            {modalMode === "not_started" && renderPreviewModal()}
+            {modalMode === "notStarted" && renderPreviewModal()}
             <View style={{ alignItems: 'center', marginTop: 30 }}>
               <View
                 style={{
